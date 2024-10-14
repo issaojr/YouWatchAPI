@@ -15,19 +15,19 @@
  * e realiza validações para garantir a integridade dos dados durante essas operações.
  */
 
-using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using YouWatchAPI.Data;
 using YouWatchAPI.Models;
 
 namespace YouWatchAPI.Controllers
 {
-    public class PlaylistsController : Controller
+    [ApiController]
+    [Route("api/[controller]")]
+    public class PlaylistsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
 
@@ -36,146 +36,136 @@ namespace YouWatchAPI.Controllers
             _context = context;
         }
 
-        // GET: Playlists
+        /* 
+         * Método: Index
+         * Descrição: 
+         * Lista todas as playlists armazenadas no banco de dados. Somente usuários autenticados 
+         * com a role "Usuario" podem acessar este método.
+         * As playlists são retornadas com seus itens associados (ItemPlaylists) e seus conteúdos.
+         * Retorno:
+         *   - Uma lista JSON de todas as playlists disponíveis.
+         */
+        [HttpGet]
+        [Authorize(Roles = "Usuario")]  // Somente usuários autenticados podem acessar playlists
         public async Task<IActionResult> Index()
         {
-            var applicationDbContext = _context.Playlists.Include(p => p.Usuario);
-            return View(await applicationDbContext.ToListAsync());
+            var playlists = await _context.Playlists.Include(p => p.ItemPlaylists).ThenInclude(ip => ip.Conteudo).ToListAsync();
+            return Ok(playlists);
         }
 
-        // GET: Playlists/Details/5
-        public async Task<IActionResult> Details(int? id)
+        /* 
+         * Método: Details
+         * Descrição: 
+         * Exibe os detalhes de uma playlist específica com base no seu ID. 
+         * Somente usuários autenticados com a role "Usuario" podem acessar este método.
+         * As playlists são retornadas com seus itens associados (ItemPlaylists) e seus conteúdos.
+         * Parâmetros:
+         *   - id: O ID da playlist a ser exibida.
+         * Retorno:
+         *   - A playlist específica em formato JSON ou NotFound se a playlist não for encontrada.
+         */
+        [HttpGet("{id}")]
+        [Authorize(Roles = "Usuario")]  // Somente usuários autenticados podem acessar playlists individuais
+        public async Task<IActionResult> Details(int id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
+            var playlist = await _context.Playlists.Include(p => p.ItemPlaylists).ThenInclude(ip => ip.Conteudo).FirstOrDefaultAsync(p => p.Id == id);
 
-            var playlist = await _context.Playlists
-                .Include(p => p.Usuario)
-                .FirstOrDefaultAsync(m => m.Id == id);
             if (playlist == null)
             {
                 return NotFound();
             }
 
-            return View(playlist);
+            return Ok(playlist);
         }
 
-        // GET: Playlists/Create
-        public IActionResult Create()
-        {
-            ViewData["UsuarioId"] = new SelectList(_context.Usuarios, "Id", "Id");
-            return View();
-        }
-
-        // POST: Playlists/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
+        /* 
+         * Método: Create
+         * Descrição: 
+         * Permite que usuários autenticados criem novas playlists. O modelo de playlist será 
+         * validado antes de ser salvo no banco de dados.
+         * Parâmetros:
+         *   - playlist: O objeto Playlist que será criado.
+         * Retorno:
+         *   - A playlist criada, ou BadRequest se os dados forem inválidos.
+         */
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,Nome,UsuarioId")] Playlist playlist)
+        [Authorize(Roles = "Usuario")]  // Somente usuários autenticados podem criar playlists
+        public async Task<IActionResult> Create([FromBody] Playlist playlist)
         {
-            if (ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
-                _context.Add(playlist);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+                return BadRequest(ModelState);
             }
-            ViewData["UsuarioId"] = new SelectList(_context.Usuarios, "Id", "Id", playlist.UsuarioId);
-            return View(playlist);
+
+            _context.Playlists.Add(playlist);
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(Details), new { id = playlist.Id }, playlist);
         }
 
-        // GET: Playlists/Edit/5
-        public async Task<IActionResult> Edit(int? id)
-        {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var playlist = await _context.Playlists.FindAsync(id);
-            if (playlist == null)
-            {
-                return NotFound();
-            }
-            ViewData["UsuarioId"] = new SelectList(_context.Usuarios, "Id", "Id", playlist.UsuarioId);
-            return View(playlist);
-        }
-
-        // POST: Playlists/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Nome,UsuarioId")] Playlist playlist)
+        /* 
+         * Método: Edit
+         * Descrição: 
+         * Permite que usuários autenticados editem uma playlist existente. O ID da playlist
+         * deve corresponder ao ID fornecido no corpo da requisição. As mudanças serão validadas 
+         * antes de serem salvas no banco de dados.
+         * Parâmetros:
+         *   - id: O ID da playlist a ser editada.
+         *   - playlist: O objeto Playlist contendo os novos dados.
+         * Retorno:
+         *   - NoContent se a atualização for bem-sucedida, ou NotFound se a playlist não for encontrada.
+         */
+        [HttpPut("{id}")]
+        [Authorize(Roles = "Usuario")]  // Somente usuários autenticados podem editar playlists
+        public async Task<IActionResult> Edit(int id, [FromBody] Playlist playlist)
         {
             if (id != playlist.Id)
             {
-                return NotFound();
+                return BadRequest();
             }
 
-            if (ModelState.IsValid)
+            _context.Entry(playlist).State = EntityState.Modified;
+
+            try
             {
-                try
-                {
-                    _context.Update(playlist);
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!PlaylistExists(playlist.Id))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-                return RedirectToAction(nameof(Index));
+                await _context.SaveChangesAsync();
             }
-            ViewData["UsuarioId"] = new SelectList(_context.Usuarios, "Id", "Id", playlist.UsuarioId);
-            return View(playlist);
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!_context.Playlists.Any(e => e.Id == id))
+                {
+                    return NotFound();
+                }
+                throw;
+            }
+
+            return NoContent();
         }
 
-        // GET: Playlists/Delete/5
-        public async Task<IActionResult> Delete(int? id)
+        /* 
+         * Método: Delete
+         * Descrição: 
+         * Permite que usuários autenticados excluam uma playlist do sistema. A playlist será 
+         * removida permanentemente do banco de dados.
+         * Parâmetros:
+         *   - id: O ID da playlist a ser excluída.
+         * Retorno:
+         *   - NoContent se a exclusão for bem-sucedida, ou NotFound se a playlist não for encontrada.
+         */
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Usuario")]  // Somente usuários autenticados podem excluir playlists
+        public async Task<IActionResult> Delete(int id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var playlist = await _context.Playlists
-                .Include(p => p.Usuario)
-                .FirstOrDefaultAsync(m => m.Id == id);
+            var playlist = await _context.Playlists.FindAsync(id);
             if (playlist == null)
             {
                 return NotFound();
             }
 
-            return View(playlist);
-        }
-
-        // POST: Playlists/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
-        {
-            var playlist = await _context.Playlists.FindAsync(id);
-            if (playlist != null)
-            {
-                _context.Playlists.Remove(playlist);
-            }
-
+            _context.Playlists.Remove(playlist);
             await _context.SaveChangesAsync();
-            return RedirectToAction(nameof(Index));
-        }
 
-        private bool PlaylistExists(int id)
-        {
-            return _context.Playlists.Any(e => e.Id == id);
+            return NoContent();
         }
     }
 }

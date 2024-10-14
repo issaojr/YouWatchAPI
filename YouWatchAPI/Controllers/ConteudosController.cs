@@ -15,19 +15,19 @@
  * e realiza validações para garantir a integridade dos dados durante essas operações.
  */
 
-using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using YouWatchAPI.Data;
 using YouWatchAPI.Models;
 
 namespace YouWatchAPI.Controllers
 {
-    public class ConteudosController : Controller
+    [ApiController]
+    [Route("api/[controller]")]
+    public class ConteudosController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
 
@@ -36,146 +36,131 @@ namespace YouWatchAPI.Controllers
             _context = context;
         }
 
-        // GET: Conteudoes
+        /* 
+         * Método: Index
+         * Descrição: 
+         * Lista todos os conteúdos armazenados no banco de dados, incluindo o criador associado 
+         * a cada conteúdo. Este método é público e pode ser acessado por qualquer usuário.
+         * Retorno:
+         *   - Uma lista JSON de todos os conteúdos disponíveis.
+         */
+        [HttpGet]
         public async Task<IActionResult> Index()
         {
-            var applicationDbContext = _context.Conteudos.Include(c => c.Criador);
-            return View(await applicationDbContext.ToListAsync());
+            var conteudos = await _context.Conteudos.Include(c => c.Criador).ToListAsync();
+            return Ok(conteudos); // Retorna os conteúdos em formato JSON
         }
 
-        // GET: Conteudoes/Details/5
+        /* 
+         * Método: Details
+         * Descrição: 
+         * Exibe os detalhes de um conteúdo específico com base no seu ID. Também inclui 
+         * o criador associado ao conteúdo. Este método é público e pode ser acessado por qualquer usuário.
+         * Parâmetros:
+         *   - id: O ID do conteúdo a ser exibido.
+         * Retorno:
+         *   - O conteúdo específico em formato JSON ou NotFound se o conteúdo não for encontrado.
+         */
+        [HttpGet("{id}")]
         public async Task<IActionResult> Details(int? id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
+            var conteudo = await _context.Conteudos.Include(c => c.Criador).FirstOrDefaultAsync(c => c.Id == id);
 
-            var conteudo = await _context.Conteudos
-                .Include(c => c.Criador)
-                .FirstOrDefaultAsync(m => m.Id == id);
             if (conteudo == null)
             {
                 return NotFound();
             }
 
-            return View(conteudo);
+            return Ok(conteudo);
         }
 
-        // GET: Conteudoes/Create
-        public IActionResult Create()
-        {
-            ViewData["CriadorId"] = new SelectList(_context.Criadores, "Id", "Id");
-            return View();
-        }
-
-        // POST: Conteudoes/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
+        /* 
+         * Método: Create
+         * Descrição: 
+         * Permite que criadores autenticados criem novos conteúdos no sistema. O conteúdo será associado
+         * a um criador e validado antes de ser armazenado no banco de dados.
+         * Parâmetros:
+         *   - conteudo: O objeto Conteudo que será criado.
+         * Retorno:
+         *   - O conteúdo criado, ou BadRequest se os dados forem inválidos.
+         */
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,Titulo,Tipo,CriadorId")] Conteudo conteudo)
+        [Authorize(Roles = "Criador")]  // Somente criadores autenticados podem criar conteúdos
+        public async Task<IActionResult> Create([FromBody] Conteudo conteudo)
         {
-            if (ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
-                _context.Add(conteudo);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+                return BadRequest(ModelState); // Mantendo validação
             }
-            ViewData["CriadorId"] = new SelectList(_context.Criadores, "Id", "Id", conteudo.CriadorId);
-            return View(conteudo);
+
+            _context.Conteudos.Add(conteudo);
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(Details), new { id = conteudo.Id }, conteudo);
         }
 
-        // GET: Conteudoes/Edit/5
-        public async Task<IActionResult> Edit(int? id)
-        {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var conteudo = await _context.Conteudos.FindAsync(id);
-            if (conteudo == null)
-            {
-                return NotFound();
-            }
-            ViewData["CriadorId"] = new SelectList(_context.Criadores, "Id", "Id", conteudo.CriadorId);
-            return View(conteudo);
-        }
-
-        // POST: Conteudoes/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Titulo,Tipo,CriadorId")] Conteudo conteudo)
+        /* 
+         * Método: Edit
+         * Descrição: 
+         * Permite que criadores autenticados editem um conteúdo existente. O conteúdo será
+         * atualizado no banco de dados após a validação.
+         * Parâmetros:
+         *   - id: O ID do conteúdo a ser editado.
+         *   - conteudo: O objeto Conteudo contendo os novos dados.
+         * Retorno:
+         *   - NoContent se a atualização for bem-sucedida, ou NotFound se o conteúdo não for encontrado.
+         */
+        [HttpPut("{id}")]
+        [Authorize(Roles = "Criador")]  // Somente criadores autenticados podem editar conteúdos
+        public async Task<IActionResult> Edit(int id, [FromBody] Conteudo conteudo)
         {
             if (id != conteudo.Id)
             {
-                return NotFound();
+                return BadRequest();
             }
 
-            if (ModelState.IsValid)
+            _context.Entry(conteudo).State = EntityState.Modified;
+
+            try
             {
-                try
-                {
-                    _context.Update(conteudo);
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!ConteudoExists(conteudo.Id))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-                return RedirectToAction(nameof(Index));
+                await _context.SaveChangesAsync();
             }
-            ViewData["CriadorId"] = new SelectList(_context.Criadores, "Id", "Id", conteudo.CriadorId);
-            return View(conteudo);
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!_context.Conteudos.Any(e => e.Id == id))
+                {
+                    return NotFound();
+                }
+                throw;
+            }
+
+            return NoContent();
         }
 
-        // GET: Conteudoes/Delete/5
-        public async Task<IActionResult> Delete(int? id)
+        /* 
+         * Método: Delete
+         * Descrição: 
+         * Permite que criadores autenticados excluam um conteúdo do sistema. O conteúdo será removido 
+         * permanentemente do banco de dados.
+         * Parâmetros:
+         *   - id: O ID do conteúdo a ser excluído.
+         * Retorno:
+         *   - NoContent se a exclusão for bem-sucedida, ou NotFound se o conteúdo não for encontrado.
+         */
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Criador")]  // Somente criadores autenticados podem excluir conteúdos
+        public async Task<IActionResult> Delete(int id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var conteudo = await _context.Conteudos
-                .Include(c => c.Criador)
-                .FirstOrDefaultAsync(m => m.Id == id);
+            var conteudo = await _context.Conteudos.FindAsync(id);
             if (conteudo == null)
             {
                 return NotFound();
             }
 
-            return View(conteudo);
-        }
-
-        // POST: Conteudoes/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
-        {
-            var conteudo = await _context.Conteudos.FindAsync(id);
-            if (conteudo != null)
-            {
-                _context.Conteudos.Remove(conteudo);
-            }
-
+            _context.Conteudos.Remove(conteudo);
             await _context.SaveChangesAsync();
-            return RedirectToAction(nameof(Index));
-        }
 
-        private bool ConteudoExists(int id)
-        {
-            return _context.Conteudos.Any(e => e.Id == id);
+            return NoContent();
         }
     }
 }

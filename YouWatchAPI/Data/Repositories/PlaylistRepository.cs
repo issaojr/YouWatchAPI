@@ -15,7 +15,6 @@
  * e conteúdos associados através da entidade "ItemPlaylist".
  */
 
-
 using Microsoft.EntityFrameworkCore;
 using YouWatchAPI.Models;
 
@@ -30,6 +29,15 @@ namespace YouWatchAPI.Data.Repositories
             _context = context;
         }
 
+        /* 
+         * Método: GetAllPlaylistsAsync
+         * Descrição: 
+         * Retorna todas as playlists do banco de dados, incluindo os itens associados 
+         * e os conteúdos através da entidade "ItemPlaylist". O método é assíncrono para 
+         * garantir melhor desempenho em operações de leitura do banco de dados.
+         * Retorno:
+         *   - Uma lista de todas as playlists com seus itens e conteúdos.
+         */
         public async Task<List<Playlist>> GetAllPlaylistsAsync()
         {
             return await _context.Playlists
@@ -38,7 +46,17 @@ namespace YouWatchAPI.Data.Repositories
                              .ToListAsync(); // Use ToListAsync() para retornos assíncronos
         }
 
-        // Método para retornar uma playlist por ID
+        /* 
+         * Método: GetPlaylistById
+         * Descrição: 
+         * Retorna uma playlist específica com base no seu ID. Também carrega os itens 
+         * associados e os conteúdos da playlist. O método é assíncrono para melhorar a 
+         * performance em operações de leitura.
+         * Parâmetros:
+         *   - id: O ID da playlist a ser retornada.
+         * Retorno:
+         *   - A playlist com seus itens e conteúdos, ou null se não encontrada.
+         */
         public async Task<Playlist> GetPlaylistById(int id)
         {
             return await _context.Playlists
@@ -47,28 +65,52 @@ namespace YouWatchAPI.Data.Repositories
                              .FirstOrDefaultAsync(p => p.Id == id);
         }
 
-        // Método para adicionar uma nova playlist
+        /* 
+         * Método: AddPlaylist
+         * Descrição: 
+         * Adiciona uma nova playlist ao banco de dados. O método é assíncrono para que 
+         * a operação de inserção ocorra de maneira não bloqueante, garantindo melhor 
+         * desempenho em operações de escrita.
+         * Parâmetros:
+         *   - playlist: O objeto Playlist que será adicionado ao banco de dados.
+         */
         public async Task AddPlaylist(Playlist playlist)
         {
             await _context.Playlists.AddAsync(playlist); // Assíncrono
-            await _context.SaveChangesAsync(); // Assíncrono
+            await _context.SaveChangesAsync(); // Salva as mudanças de forma assíncrona
         }
 
-        // Método para atualizar uma playlist
+        /* 
+         * Método: UpdatePlaylist
+         * Descrição: 
+         * Atualiza uma playlist existente no banco de dados. O método altera os dados da 
+         * playlist e os salva de maneira assíncrona, garantindo que o estado atualizado seja 
+         * persistido no banco de dados.
+         * Parâmetros:
+         *   - playlist: O objeto Playlist contendo os novos dados a serem atualizados.
+         */
         public async Task UpdatePlaylist(Playlist playlist)
         {
-            _context.Playlists.Update(playlist);
-            await _context.SaveChangesAsync(); // Assíncrono
+            _context.Playlists.Update(playlist); // Marca a playlist como modificada
+            await _context.SaveChangesAsync(); // Salva as mudanças de forma assíncrona
         }
 
-        // Método para deletar uma playlist
+        /* 
+         * Método: DeletePlaylist
+         * Descrição: 
+         * Remove uma playlist do banco de dados com base no seu ID. A operação é assíncrona 
+         * para garantir que a exclusão ocorra sem bloquear a execução de outras operações. 
+         * A playlist será removida se for encontrada no banco de dados.
+         * Parâmetros:
+         *   - id: O ID da playlist a ser removida.
+         */
         public async Task DeletePlaylist(int id)
         {
-            var playlist = await _context.Playlists.FindAsync(id); // Assíncrono
+            var playlist = await _context.Playlists.FindAsync(id); // Localiza a playlist
             if (playlist != null)
             {
-                _context.Playlists.Remove(playlist);
-                await _context.SaveChangesAsync(); // Assíncrono
+                _context.Playlists.Remove(playlist); // Remove a playlist
+                await _context.SaveChangesAsync(); // Salva as mudanças de forma assíncrona
             }
         }
     }

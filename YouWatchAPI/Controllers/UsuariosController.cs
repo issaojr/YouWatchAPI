@@ -15,10 +15,9 @@
  * das informações ao realizar essas operações.
  */
 
-using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using YouWatchAPI.Data;
@@ -37,15 +36,34 @@ namespace YouWatchAPI.Controllers
             _context = context;
         }
 
-        // GET: api/usuarios
+        /* 
+         * Método: Index
+         * Descrição: 
+         * Lista todos os usuários armazenados no banco de dados. Somente usuários autenticados 
+         * com a role "Usuario" podem acessar este método.
+         * Retorno:
+         *   - Uma lista JSON de todos os usuários.
+         */
         [HttpGet]
+        [Authorize(Roles = "Usuario")] // Somente usuários autenticados podem listar
         public async Task<IActionResult> Index()
         {
-            return Ok(await _context.Usuarios.ToListAsync());
+            var usuarios = await _context.Usuarios.ToListAsync();
+            return Ok(usuarios);
         }
 
-        // GET: api/usuarios/5
+        /* 
+         * Método: Details
+         * Descrição: 
+         * Exibe os detalhes de um usuário específico com base no seu ID. 
+         * Somente usuários autenticados com a role "Usuario" podem acessar este método.
+         * Parâmetros:
+         *   - id: O ID do usuário a ser exibido.
+         * Retorno:
+         *   - O usuário específico em formato JSON ou NotFound se o usuário não for encontrado.
+         */
         [HttpGet("{id}")]
+        [Authorize(Roles = "Usuario")] // Somente usuários autenticados podem visualizar detalhes
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null)
@@ -53,7 +71,7 @@ namespace YouWatchAPI.Controllers
                 return BadRequest();
             }
 
-            var usuario = await _context.Usuarios.FirstOrDefaultAsync(m => m.Id == id);
+            var usuario = await _context.Usuarios.FindAsync(id);
             if (usuario == null)
             {
                 return NotFound();
@@ -62,8 +80,18 @@ namespace YouWatchAPI.Controllers
             return Ok(usuario);
         }
 
-        // POST: api/usuarios
+        /* 
+         * Método: Create
+         * Descrição: 
+         * Permite que usuários autenticados criem novos registros de usuário no sistema.
+         * O usuário é validado e salvo no banco de dados.
+         * Parâmetros:
+         *   - usuario: O objeto Usuario que será criado.
+         * Retorno:
+         *   - O usuário criado, ou BadRequest se os dados forem inválidos.
+         */
         [HttpPost]
+        [Authorize(Roles = "Usuario")] // Somente usuários podem criar outros usuários
         public async Task<IActionResult> Create([FromBody] Usuario usuario)
         {
             if (!ModelState.IsValid)
@@ -71,13 +99,24 @@ namespace YouWatchAPI.Controllers
                 return BadRequest(ModelState);
             }
 
-            _context.Add(usuario);
+            _context.Usuarios.Add(usuario);
             await _context.SaveChangesAsync();
             return CreatedAtAction(nameof(Details), new { id = usuario.Id }, usuario);
         }
 
-        // PUT: api/usuarios/5
+        /* 
+         * Método: Edit
+         * Descrição: 
+         * Permite que usuários autenticados editem os dados de um usuário existente. 
+         * O ID do usuário deve corresponder ao ID fornecido no corpo da requisição.
+         * Parâmetros:
+         *   - id: O ID do usuário a ser editado.
+         *   - usuario: O objeto Usuario contendo os novos dados.
+         * Retorno:
+         *   - NoContent se a atualização for bem-sucedida, ou NotFound se o usuário não for encontrado.
+         */
         [HttpPut("{id}")]
+        [Authorize(Roles = "Usuario")] // Somente usuários autenticados podem editar
         public async Task<IActionResult> Edit(int id, [FromBody] Usuario usuario)
         {
             if (id != usuario.Id)
@@ -101,17 +140,24 @@ namespace YouWatchAPI.Controllers
                 {
                     return NotFound();
                 }
-                else
-                {
-                    throw;
-                }
+                throw;
             }
 
             return NoContent();
         }
 
-        // DELETE: api/usuarios/5
+        /* 
+         * Método: Delete
+         * Descrição: 
+         * Permite que usuários autenticados excluam um usuário do sistema. 
+         * O usuário será removido permanentemente do banco de dados.
+         * Parâmetros:
+         *   - id: O ID do usuário a ser excluído.
+         * Retorno:
+         *   - NoContent se a exclusão for bem-sucedida, ou NotFound se o usuário não for encontrado.
+         */
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Usuario")] // Somente usuários autenticados podem excluir
         public async Task<IActionResult> Delete(int id)
         {
             var usuario = await _context.Usuarios.FindAsync(id);
@@ -126,6 +172,15 @@ namespace YouWatchAPI.Controllers
             return NoContent();
         }
 
+        /* 
+         * Método: UsuarioExists
+         * Descrição: 
+         * Verifica se um usuário com o ID fornecido existe no banco de dados.
+         * Parâmetros:
+         *   - id: O ID do usuário a ser verificado.
+         * Retorno:
+         *   - true se o usuário existir, false caso contrário.
+         */
         private bool UsuarioExists(int id)
         {
             return _context.Usuarios.Any(e => e.Id == id);

@@ -15,7 +15,6 @@
  * lógica de negócio e facilita a manutenção e reutilização do código.
  */
 
-
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using YouWatchAPI.Data.Repositories;
@@ -23,36 +22,63 @@ using YouWatchAPI.Models;
 
 namespace YouWatchAPI.Services
 {
-    public class PlaylistService
+    public class PlaylistService(PlaylistRepository playlistRepository)
     {
-        private readonly PlaylistRepository _playlistRepository;
+        private readonly PlaylistRepository _playlistRepository = playlistRepository;
 
-        // Injeção de dependência do repositório
-        public PlaylistService(PlaylistRepository playlistRepository)
-        {
-            _playlistRepository = playlistRepository;
-        }
-
-        // Retornar todas as playlists
+        /* 
+         * Método: GetAllPlaylistsAsync
+         * Descrição: 
+         * Retorna todas as playlists do banco de dados de forma assíncrona.
+         * Este método delega a operação ao repositório e retorna uma lista de playlists.
+         */
         public async Task<List<Playlist>> GetAllPlaylistsAsync()
         {
             return await _playlistRepository.GetAllPlaylistsAsync();
         }
 
-        // Retornar uma playlist por ID
+        /* 
+         * Método: GetPlaylistByIdAsync
+         * Descrição: 
+         * Retorna uma playlist específica com base no ID informado. 
+         * A operação é assíncrona e delegada ao repositório.
+         * Parâmetros:
+         *   - id: O identificador da playlist que será retornada.
+         * Retorno:
+         *   - A playlist correspondente ao ID, ou null se não encontrada.
+         */
         public async Task<Playlist> GetPlaylistByIdAsync(int id)
         {
             return await _playlistRepository.GetPlaylistById(id);
         }
 
-        // Adicionar uma nova playlist
+        /* 
+         * Método: AddPlaylistAsync
+         * Descrição: 
+         * Adiciona uma nova playlist ao banco de dados. A operação é assíncrona 
+         * e o método delega o processo de inserção ao repositório.
+         * Parâmetros:
+         *   - playlist: O objeto Playlist que será adicionado ao banco de dados.
+         * Retorno:
+         *   - A playlist recém-adicionada.
+         */
         public async Task<Playlist> AddPlaylistAsync(Playlist playlist)
         {
             await _playlistRepository.AddPlaylist(playlist);
             return playlist;
         }
 
-        // Atualizar uma playlist existente
+        /* 
+         * Método: UpdatePlaylistAsync
+         * Descrição: 
+         * Atualiza uma playlist existente no banco de dados. Primeiro, verifica se a playlist 
+         * existe. Se encontrada, delega a atualização ao repositório. Se não for encontrada, 
+         * retorna falso.
+         * Parâmetros:
+         *   - playlist: O objeto Playlist que contém os dados atualizados.
+         * Retorno:
+         *   - true se a playlist foi atualizada, false se a playlist não foi encontrada.
+         */
         public async Task<bool> UpdatePlaylistAsync(Playlist playlist)
         {
             var existingPlaylist = await _playlistRepository.GetPlaylistById(playlist.Id);
@@ -65,7 +91,17 @@ namespace YouWatchAPI.Services
             return true;
         }
 
-        // Deletar uma playlist
+        /* 
+         * Método: DeletePlaylistAsync
+         * Descrição: 
+         * Deleta uma playlist do banco de dados com base no ID informado. Primeiro, verifica se 
+         * a playlist existe. Se encontrada, delega a remoção ao repositório. Se não for encontrada, 
+         * retorna falso.
+         * Parâmetros:
+         *   - id: O identificador da playlist a ser deletada.
+         * Retorno:
+         *   - true se a playlist foi deletada, false se a playlist não foi encontrada.
+         */
         public async Task<bool> DeletePlaylistAsync(int id)
         {
             var existingPlaylist = await _playlistRepository.GetPlaylistById(id);
