@@ -33,62 +33,45 @@ namespace YouWatchAPI
 
             // Adicionar os serviços ao contêiner.
 
-            /* 
-             * Serviço: AddControllers
-             * Descrição:
-             * Adiciona o suporte para os controladores da API. Permite o uso do padrão MVC sem views (para APIs),
-             * onde os controladores processam as requisições HTTP.
-             */
+            /* Serviço: AddControllers */
             builder.Services.AddControllers();
 
-            /* 
-             * Serviço: Swagger/OpenAPI
-             * Descrição:
-             * Adiciona suporte ao Swagger, permitindo a geração automática da documentação da API
-             * e o acesso à interface Swagger UI para testar endpoints.
-             */
+            /* Serviço: Swagger/OpenAPI */
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
-            /* 
-             * Serviço: AddDbContext
-             * Descrição:
-             * Configura o Entity Framework para usar o SQL Server como o banco de dados. 
-             * O contexto do banco de dados (ApplicationDbContext) é injetado e configurado 
-             * com a string de conexão armazenada no arquivo de configuração.
-             */
+            /* Serviço: AddDbContext */
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-            /* 
-             * Serviço: Injeção de dependência
-             * Descrição:
-             * Injeção de dependência do PlaylistService e PlaylistRepository, 
-             * tornando-os disponíveis para outros serviços e controladores que precisarem.
-             */
+            /* Serviço: Injeção de dependência */
             builder.Services.AddScoped<PlaylistService>();
             builder.Services.AddScoped<PlaylistRepository>();
 
-            /* 
-             * Configuração: Autenticação JWT
-             * Descrição:
-             * Configura o esquema de autenticação JWT (JSON Web Token). O JWT é utilizado para 
-             * autenticar e autorizar usuários, onde um token é emitido após o login e incluído 
-             * nos cabeçalhos das requisições subsequentes para verificar a identidade do usuário.
-             * A chave secreta usada para assinar o token e outros parâmetros são configurados.
-             */
+            /* Serviço: Adicionar CORS */
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowAllOrigins", policy =>
+                {
+                    policy.AllowAnyOrigin()
+                          .AllowAnyMethod()
+                          .AllowAnyHeader();
+                });
+            });
+
+            /* Configuração: Autenticação JWT */
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>
                 {
                     options.TokenValidationParameters = new TokenValidationParameters
                     {
-                        ValidateIssuer = true, // Valida o emissor do token
-                        ValidateAudience = true, // Valida a audiência do token
-                        ValidateLifetime = true, // Valida o tempo de expiração do token
-                        ValidateIssuerSigningKey = true, // Valida a chave de assinatura
-                        ValidIssuer = builder.Configuration["Jwt:Issuer"], // O emissor permitido
-                        ValidAudience = builder.Configuration["Jwt:Audience"], // A audiência permitida
-                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])) // A chave de assinatura
+                        ValidateIssuer = true,
+                        ValidateAudience = true,
+                        ValidateLifetime = true,
+                        ValidateIssuerSigningKey = true,
+                        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+                        ValidAudience = builder.Configuration["Jwt:Audience"],
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
                     };
                 });
 
@@ -96,41 +79,24 @@ namespace YouWatchAPI
 
             // Configuração do pipeline de requisição HTTP.
 
-            /* 
-             * Ambiente de desenvolvimento: Swagger
-             * Descrição:
-             * Se a aplicação estiver no ambiente de desenvolvimento, o Swagger será habilitado.
-             * Isso permite testar os endpoints da API e visualizar a documentação gerada automaticamente.
-             */
+            /* Ambiente de desenvolvimento: Swagger */
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
 
-            /* 
-             * Middleware: HTTPS Redirection
-             * Descrição:
-             * Garante que todas as requisições HTTP sejam redirecionadas para HTTPS, 
-             * aumentando a segurança das requisições na aplicação.
-             */
+            /* Middleware: HTTPS Redirection */
             app.UseHttpsRedirection();
 
-            /* 
-             * Middleware: Autenticação e Autorização
-             * Descrição:
-             * Configura o middleware de autenticação (UseAuthentication) e autorização (UseAuthorization).
-             * A autenticação verifica a identidade do usuário com base no token JWT, e a autorização
-             * garante que apenas usuários com permissões adequadas possam acessar determinados recursos.
-             */
-            app.UseAuthentication(); // Verifica a identidade do usuário
-            app.UseAuthorization();  // Verifica as permissões do usuário
+            /* Middleware: CORS */
+            app.UseCors("AllowAllOrigins");
 
-            /* 
-             * Mapeamento de controladores
-             * Descrição:
-             * Habilita o roteamento de requisições para os controladores da API.
-             */
+            /* Middleware: Autenticação e Autorização */
+            app.UseAuthentication();
+            app.UseAuthorization();
+
+            /* Mapeamento de controladores */
             app.MapControllers();
 
             // Executa a aplicação
