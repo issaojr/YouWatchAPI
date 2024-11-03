@@ -48,8 +48,11 @@ namespace YouWatchAPI
         public void ConfigureServices(IServiceCollection services)
         {
             // Configuração do Entity Framework e do banco de dados
+            //services.AddDbContext<ApplicationDbContext>(options =>
+            //options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection")));
             services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection")));
+                options.UseSqlite(Configuration.GetConnectionString("DefaultConnection")));
+
 
             // Adiciona suporte para controladores
             services.AddControllers();

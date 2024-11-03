@@ -16,12 +16,15 @@
  */
 
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
+using Azure.Core;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using YouWatchAPI.Data;
 using YouWatchAPI.Models;
+using YouWatchAPI.Util;
 
 namespace YouWatchAPI.Controllers
 {
@@ -83,26 +86,43 @@ namespace YouWatchAPI.Controllers
         /* 
          * Método: Create
          * Descrição: 
-         * Permite que usuários autenticados criem novos registros de usuário no sistema.
+         * Permite que qualquer pessoa crie um novo registro de usuário no sistema.
          * O usuário é validado e salvo no banco de dados.
          * Parâmetros:
          *   - usuario: O objeto Usuario que será criado.
          * Retorno:
          *   - O usuário criado, ou BadRequest se os dados forem inválidos.
          */
-        [HttpPost]
-        [Authorize(Roles = "Usuario")] // Somente usuários podem criar outros usuários
+        [HttpPost("create")]
         public async Task<IActionResult> Create([FromBody] Usuario usuario)
         {
+            // Verificar se o modelo enviado é válido
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
 
+            // Verificar se o e-mail já está registrado
+            if (await _context.Usuarios.AnyAsync(u => u.Email == usuario.Email))
+            {
+                return Conflict("E-mail já registrado. Tente outro.");
+            }
+
+            // Hashear a senha antes de salvar o usuário
+            usuario.Senha = HashPassword.GenerateHash(usuario.Senha);
+
+            // Salvar o usuário no banco de dados
             _context.Usuarios.Add(usuario);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(Details), new { id = usuario.Id }, usuario);
+
+            return CreatedAtAction(nameof(Details), new { id = usuario.Id }, new
+            {
+                usuario.Id,
+                usuario.Nome,
+                usuario.Email
+            });
         }
+        
 
         /* 
          * Método: Edit

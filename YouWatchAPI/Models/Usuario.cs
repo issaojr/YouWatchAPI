@@ -68,6 +68,6 @@ namespace YouWatchAPI.Models
          * Uma lista de playlists associadas ao usuário. Um usuário pode ter várias playlists.
          * Relação de um-para-muitos: Um usuário pode ser dono de várias playlists.
          */
-        public List<Playlist> Playlists { get; set; }
+        public List<Playlist>? Playlists { get; set; }// Tornar opcional para evitar erros de serialização
     }
 }

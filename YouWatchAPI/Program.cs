@@ -22,6 +22,7 @@ using YouWatchAPI.Data.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Configuration;
 
 namespace YouWatchAPI
 {
@@ -41,8 +42,10 @@ namespace YouWatchAPI
             builder.Services.AddSwaggerGen();
 
             /* Serviço: AddDbContext */
+            //builder.Services.AddDbContext<ApplicationDbContext>(options =>
+            //options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+                options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
             /* Serviço: Injeção de dependência */
             builder.Services.AddScoped<PlaylistService>();
@@ -51,12 +54,10 @@ namespace YouWatchAPI
             /* Serviço: Adicionar CORS */
             builder.Services.AddCors(options =>
             {
-                options.AddPolicy("AllowAllOrigins", policy =>
-                {
-                    policy.AllowAnyOrigin()
+                options.AddPolicy("AllowAll",
+                    builder => builder.AllowAnyOrigin()
                           .AllowAnyMethod()
-                          .AllowAnyHeader();
-                });
+                          .AllowAnyHeader());
             });
 
             /* Configuração: Autenticação JWT */
@@ -90,7 +91,7 @@ namespace YouWatchAPI
             app.UseHttpsRedirection();
 
             /* Middleware: CORS */
-            app.UseCors("AllowAllOrigins");
+            app.UseCors("AllowAll");
 
             /* Middleware: Autenticação e Autorização */
             app.UseAuthentication();

@@ -21,9 +21,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using YouWatchAPI.Data;
 using YouWatchAPI.Models;
+using YouWatchAPI.Util;
 
 namespace YouWatchAPI.Controllers
 {
@@ -62,9 +64,12 @@ namespace YouWatchAPI.Controllers
                 return BadRequest("Email e senha são obrigatórios.");
             }
 
+            // Converte texto de senha para hash
+            string computedHash = HashPassword.GenerateHash(request.Senha);
+
             // Tenta autenticar como Usuário
             var usuario = await _context.Usuarios.FirstOrDefaultAsync(u => u.Email == request.Email);
-            if (usuario != null && VerifyPasswordHash(request.Senha, usuario.Senha))
+            if (usuario != null && VerifyPasswordHash(computedHash, usuario.Senha))
             {
                 var token = GenerateJwtToken(usuario.Email, "Usuario");
                 return Ok(new { Token = token });
@@ -72,7 +77,7 @@ namespace YouWatchAPI.Controllers
 
             // Tenta autenticar como Criador
             var criador = await _context.Criadores.FirstOrDefaultAsync(c => c.Email == request.Email);
-            if (criador != null && VerifyPasswordHash(request.Senha, criador.Senha))
+            if (criador != null && VerifyPasswordHash(computedHash, criador.Senha))
             {
                 var token = GenerateJwtToken(criador.Email, "Criador");
                 return Ok(new { Token = token });
@@ -123,13 +128,9 @@ namespace YouWatchAPI.Controllers
          * Retorno:
          *   - true se a senha for válida, false caso contrário.
          */
-        private bool VerifyPasswordHash(string password, string storedHash)
+        private static bool VerifyPasswordHash(string computedHash, string storedHash)
         {
-            using (var hmac = new System.Security.Cryptography.HMACSHA512())
-            {
-                var computedHash = Convert.ToBase64String(hmac.ComputeHash(Encoding.UTF8.GetBytes(password)));
-                return storedHash == computedHash;
-            }
+            return storedHash == computedHash;
         }
     }
 }
